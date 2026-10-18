@@ -1,0 +1,22 @@
+# Roadmap
+
+- [x] Phase 0 — Spikes (2026-10-18) : voir `Phase0-Resultats.md`
+- [x] Phase 1 — `core` (2026-10-18) : modèle, préréglages, plan + garde-fous, trait `DiskBackend`, backend udisks, revue de code faite et blocages corrigés, 50 tests unitaires + 2 tests réels (image loop, détection du disque système) (`cargo test -p kformat-core --test loop_device -- --ignored`)
+- [ ] Phase 2 — `app` : assistant 3 étapes, préréglages
+  - [x] Étape 1 (2026-10-18) : squelette cxx-qt, `DiskController` (thread + `CxxQtThread`), `core::view` (JSON pour l'UI), page « Choisir un disque » (disque système grisé avec raison)
+  - [x] Étape 2 (2026-10-18) : `OptionsPage` (4 préréglages en cartes, nom du volume validé, options avancées FS/table/effacement), `core::view::options_json` + `label_message`, formats grisés avec le paquet à installer (ex. NTFS → ntfs-3g)
+  - [x] Étape 3 (2026-10-18) : `core::session::prepare_plan`, messages d'erreur FR, `ConfirmPage` (ce qui sera effacé + saisie du nom), `RunPage` (progression, résultat, fermeture bloquée pendant l'écriture), test bout en bout sans écran sur image loop (`kformat-app --smoke <loop>`)
+  - [x] Revue de code de la crate `app` (verdict WARNING, points HIGH/MEDIUM corrigés)
+- [ ] Phase 3 — Effacement sécurisé, NTFS, gestion d'erreurs UI
+- [ ] Phase 4 — Intégration Dolphin (service menu), paquet AUR
+- [ ] Dette phase 1 (revue, non bloquante) : confirmation renforcée disque non amovible, `#[source]` sur erreurs, retry Format→CreatePartition, timeout/annulation effacement, tri naturel, multi-montage d'une partition
+- [x] Essai réel sur clé USB (2026-10-18) : formatage complet réussi après correction du faux positif d'identité (voir Décisions techniques)
+- [ ] Dette phase 2 (revue, non bloquante) : verrou d'inhibition logind pendant l'écriture (Qt.quit/SIGTERM/déconnexion tuent encore le processus), `load_options` hors du thread UI, test réel de l'ergonomie sur une vraie clé USB avec accord de l'utilisateur
+- [ ] Phase 4 — intégration bureau
+  - [x] Option `--device /dev/sdX` (2026-10-18) : `core::cli::parse_device_arg` (validée, testée), saute la liste, accepte une partition (`sda1` → `sda`), refuse disque système/inexistant avec un message
+  - [x] Lanceur `packaging/kformat.desktop` + action Solid `packaging/solid/kformat-format.desktop` (widget des périphériques) + `scripts/install-user.sh` (installation utilisateur réversible, `--uninstall`)
+  - [x] Installation utilisateur faite le 2026-10-18 (`scripts/install-user.sh`)
+  - [ ] Vérifier l'action Solid dans le widget des périphériques (essai par l'utilisateur avec une clé branchée)
+  - [x] Paquet AUR (2026-10-18) : `packaging/aur/PKGBUILD` + `README.md` (test local et procédure de publication) ; construit et inspecté avec `makepkg`
+  - [ ] Publication : dépôt GitHub `thongor77/kformat`, tag `v0.1.0`, `updpkgsums`, `.SRCINFO`, dépôt AUR (par le mainteneur)
+- v2 — Partitionnement

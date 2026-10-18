@@ -1,0 +1,10 @@
+[Desktop Entry]
+X-KDE-Solid-Predicate=[ StorageVolume.ignored == false AND StorageVolume.usage == 'FileSystem' ]
+Type=Service
+Actions=format;
+
+[Desktop Action format]
+Name=Format with kformat…
+Name[fr]=Formater avec kformat…
+Exec=kformat --device %d
+Icon=drive-removable-media

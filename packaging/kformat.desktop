@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=kformat
+GenericName=Disk formatter
+GenericName[fr]=Formatage de disques
+Comment=Format a disk, SSD or USB stick simply and safely
+Comment[fr]=Formater simplement et sûrement un disque, un SSD ou une clé USB
+Exec=kformat
+Icon=drive-removable-media
+Terminal=false
+StartupNotify=true
+Categories=Qt;KDE;System;Filesystem;
+Keywords=format;formatage;disque;usb;clé;ssd;exfat;ext4;
