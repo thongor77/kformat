@@ -1,5 +1,7 @@
 # AUR package for kformat
 
+Published on the AUR: <https://aur.archlinux.org/packages/kformat> (first version 0.1.0, 2026-10-24).
+
 `PKGBUILD` builds kformat from the archive of the GitHub tag `v<pkgver>`.
 
 ## Test the package locally (without publishing)

@@ -10,12 +10,13 @@
 - **Sleep/shutdown inhibitor** (2026-10-24): a logind lock is held while a plan runs; verified during a real format.
 - **Translations** (2026-10-24): English, French, Spanish through a compiled-in catalogue.
 - **English documentation** (2026-10-24).
+- **v0.1.0 released** (2026-10-24): public repository, tag, GitHub Release and AUR package.
 
 ## Open
 
 - [ ] Native-speaker review of the Spanish translation.
 - [x] Tag `v0.1.0` (2026-10-24); the AUR `PKGBUILD` carries its checksum and was built from the real tag archive.
-- [ ] Publish the AUR package (`packaging/aur/README.md`).
+- [x] AUR package published (2026-10-24): https://aur.archlinux.org/packages/kformat
 - [ ] Review follow-ups (non-blocking):
   - [ ] stronger confirmation for non-removable disks;
   - [ ] keep error sources (`#[source]`) in `BackendError`;

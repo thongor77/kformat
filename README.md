@@ -59,7 +59,13 @@ With a stick plugged in, open Plasma's *Devices* widget in the system tray and c
 
 ### Arch Linux
 
-An AUR package is being prepared (see [`packaging/aur`](packaging/aur)); once it is published you will be able to install it with your AUR helper. Until then, build from source.
+Install it from the [AUR](https://aur.archlinux.org/packages/kformat):
+
+```bash
+yay -S kformat        # or: paru -S kformat
+```
+
+(The recipe lives in [`packaging/aur`](packaging/aur).) You can also build from source, below.
 
 ### From source
 
