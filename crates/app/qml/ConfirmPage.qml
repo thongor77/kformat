@@ -11,7 +11,7 @@ Kirigami.ScrollablePage {
     property string typed: ""
     readonly property bool confirmed: typed === plan.confirmationPhrase
 
-    title: "Confirmer le formatage"
+    title: controller.tr("ConfirmTitle")
 
     header: Kirigami.InlineMessage {
         visible: controller.planError !== ""
@@ -36,12 +36,12 @@ Kirigami.ScrollablePage {
             QQC2.TextField {
                 id: phraseField
                 Layout.fillWidth: true
-                placeholderText: "Tapez « " + page.plan.confirmationPhrase + " » pour confirmer"
+                placeholderText: controller.tr1("ConfirmTypePlaceholder", page.plan.confirmationPhrase)
                 onTextEdited: page.typed = text
                 onAccepted: if (page.confirmed) page.controller.confirmAndRun(page.typed)
             }
             QQC2.Button {
-                text: "Formater définitivement"
+                text: controller.tr("ConfirmButton")
                 icon.name: "edit-delete"
                 enabled: page.confirmed
                 onClicked: page.controller.confirmAndRun(page.typed)
@@ -56,15 +56,14 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: true
             type: Kirigami.MessageType.Warning
-            text: "Toutes les données de ce disque seront définitivement effacées. Cette action est irréversible."
+            text: controller.tr("ConfirmWarning")
         }
 
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: !page.plan.sleepProtected
             type: Kirigami.MessageType.Information
-            text: "La mise en veille ne peut pas être bloquée pendant le formatage. "
-                + "Ne fermez pas le capot et ne mettez pas l'ordinateur en veille avant la fin."
+            text: controller.tr("ConfirmSleepNotBlocked")
         }
 
         Kirigami.Heading {
@@ -76,12 +75,12 @@ Kirigami.ScrollablePage {
 
         Kirigami.Heading {
             level: 4
-            text: "Ce qui sera effacé"
+            text: controller.tr("ConfirmWillErase")
         }
         QQC2.Label {
             visible: page.plan.willErase.length === 0
             opacity: 0.7
-            text: "Aucune partition détectée sur ce disque."
+            text: controller.tr("ConfirmNoPartitions")
         }
         Repeater {
             model: page.plan.willErase
@@ -90,22 +89,28 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 text: "• " + modelData.device + " — "
-                    + (modelData.label !== "" ? "« " + modelData.label + " », " : "")
+                    + (modelData.label !== "" ? page.controller.tr1("Quoted", modelData.label) + ", " : "")
                     + (modelData.fsType !== "" ? modelData.fsType + ", " : "")
                     + modelData.sizeText
-                    + (modelData.mounted ? " (sera démontée)" : "")
+                    + (modelData.mounted ? page.controller.tr("ConfirmWillBeUnmounted") : "")
             }
         }
 
         Kirigami.Heading {
             level: 4
-            text: "Nouveau format"
+            text: controller.tr("ConfirmNewFormat")
         }
         QQC2.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: page.plan.fsName + " · table " + page.plan.tableName
-                + (page.plan.label !== "" ? " · nom « " + page.plan.label + " »" : " · sans nom")
+            text: controller.tr3(
+                "ConfirmFormatSummary",
+                page.plan.fsName,
+                page.plan.tableName,
+                page.plan.label !== ""
+                    ? controller.tr1("ConfirmNamed", controller.tr1("Quoted", page.plan.label))
+                    : controller.tr("ConfirmUnnamed")
+            )
         }
         QQC2.Label {
             Layout.fillWidth: true
@@ -116,7 +121,7 @@ Kirigami.ScrollablePage {
 
         Kirigami.Heading {
             level: 4
-            text: "Étapes"
+            text: controller.tr("ConfirmSteps")
         }
         Repeater {
             model: page.plan.steps

@@ -17,7 +17,7 @@ Kirigami.Page {
         }
     }
 
-    title: running ? "Formatage en cours" : (succeeded ? "Terminé" : "Échec")
+    title: running ? controller.tr("RunTitleRunning") : (succeeded ? controller.tr("RunTitleDone") : controller.tr("RunTitleFailed"))
     // No back button while the disk is being written.
     globalToolBarStyle: running ? Kirigami.ApplicationHeaderStyle.None : Kirigami.ApplicationHeaderStyle.Auto
 
@@ -56,13 +56,13 @@ Kirigami.Page {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             opacity: 0.7
-            text: "Ne débranchez pas le disque et ne fermez pas l'application."
+            text: controller.tr("RunDoNotUnplug")
         }
 
         QQC2.Button {
             Layout.alignment: Qt.AlignHCenter
             visible: !page.running
-            text: page.succeeded ? "Terminer" : "Retour à la liste"
+            text: page.succeeded ? page.controller.tr("RunFinish") : page.controller.tr("RunBackToList")
             icon.name: "go-home"
             onClicked: {
                 applicationWindow().pageStack.pop(applicationWindow().pageStack.get(0))

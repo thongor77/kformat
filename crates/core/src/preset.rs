@@ -1,4 +1,5 @@
 use crate::fs::FsType;
+use crate::messages::Msg;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableKind {
@@ -81,25 +82,21 @@ impl Preset {
         }
     }
 
-    pub fn title(self) -> &'static str {
+    pub fn title_msg(self) -> Msg {
         match self {
-            Preset::UniversalUsb => "Clé USB universelle",
-            Preset::Linux => "Disque Linux",
-            Preset::Windows => "Disque Windows",
-            Preset::LegacyFat32 => "Compatibilité maximale (FAT32)",
+            Preset::UniversalUsb => Msg::PresetUniversalUsbTitle,
+            Preset::Linux => Msg::PresetLinuxTitle,
+            Preset::Windows => Msg::PresetWindowsTitle,
+            Preset::LegacyFat32 => Msg::PresetLegacyFat32Title,
         }
     }
 
-    pub fn description(self) -> &'static str {
+    pub fn description_msg(self) -> Msg {
         match self {
-            Preset::UniversalUsb => {
-                "exFAT : lisible sur Windows, macOS et Linux, fichiers de plus de 4 Go."
-            }
-            Preset::Linux => "ext4 : le système de fichiers standard de Linux.",
-            Preset::Windows => "NTFS : pour un disque utilisé surtout sous Windows.",
-            Preset::LegacyFat32 => {
-                "FAT32 : appareils anciens, TV, autoradios (fichiers limités à 4 Go)."
-            }
+            Preset::UniversalUsb => Msg::PresetUniversalUsbDescription,
+            Preset::Linux => Msg::PresetLinuxDescription,
+            Preset::Windows => Msg::PresetWindowsDescription,
+            Preset::LegacyFat32 => Msg::PresetLegacyFat32Description,
         }
     }
 }

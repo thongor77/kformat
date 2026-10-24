@@ -36,6 +36,8 @@ Détail : `docs/Architecture.md`.
 
 ## Conventions spécifiques
 
+- Langues : anglais, français, espagnol (`LANG`/`LC_*`/`LANGUAGE`, forçable avec `KFORMAT_LANG=en|fr|es`, repli anglais). **Tout texte visible passe par `crates/core/src/messages.rs`** (une entrée = les 3 langues, sinon ça ne compile pas) ; le QML demande ses textes au contrôleur (`controller.tr("Clé")`, `tr1`, `tr2`, `tr3`). Jamais de texte en dur dans le Rust ou le QML.
+
 - Aucune opération destructive sans confirmation explicite (retaper le nom du disque).
 - Le disque contenant `/` ou `/boot` n'est jamais proposé au formatage.
 - Tests de `core` avec un udisks simulé (trait) ; tests réels uniquement sur image loop.

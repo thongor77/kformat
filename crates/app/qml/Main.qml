@@ -32,7 +32,7 @@ Kirigami.ApplicationWindow {
             d => d.device === wanted || d.partitions.some(p => p.device === wanted)
         )
         if (!disk) {
-            startNotice = "Disque introuvable : " + wanted
+            startNotice = controller.tr1("StartNotFound", wanted)
         } else if (!disk.selectable) {
             startNotice = disk.title + " : " + disk.blockedReason
         } else {

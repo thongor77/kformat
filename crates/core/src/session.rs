@@ -34,13 +34,12 @@ pub fn prepare_plan<B: DiskBackend + ?Sized>(
     available: &[FsType],
     input: &PlanInput,
 ) -> Result<FormatPlan, SessionError> {
-    let unknown = |what: &str, id: &str| SessionError::UnknownOption(format!("{what} « {id} »"));
-    let fs = FsType::from_udisks_name(input.fs_id)
-        .ok_or_else(|| unknown("système de fichiers", input.fs_id))?;
-    let table = TableKind::from_id(input.table_id)
-        .ok_or_else(|| unknown("table de partitions", input.table_id))?;
-    let erase = EraseMode::from_id(input.erase_id)
-        .ok_or_else(|| unknown("mode d'effacement", input.erase_id))?;
+    let unknown = |what: &str, id: &str| SessionError::UnknownOption(format!("{what}={id}"));
+    let fs = FsType::from_udisks_name(input.fs_id).ok_or_else(|| unknown("fs", input.fs_id))?;
+    let table =
+        TableKind::from_id(input.table_id).ok_or_else(|| unknown("table", input.table_id))?;
+    let erase =
+        EraseMode::from_id(input.erase_id).ok_or_else(|| unknown("erase", input.erase_id))?;
 
     let disk = backend
         .list_disks()?

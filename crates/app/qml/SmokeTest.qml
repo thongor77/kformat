@@ -33,6 +33,8 @@ Item {
                     smoke.log("disks:", JSON.parse(c.disksJson).length, "error:", c.error)
                     smoke.log("start:", JSON.stringify(c.startDevice), "startError:", JSON.stringify(c.startError),
                               "| page:", applicationWindow().pageStack.currentItem.title)
+                    smoke.log("lang check:", c.tr("DiskTitle"), "|", c.tr1("StartNotFound", "/dev/sdx"),
+                              "|", JSON.parse(c.optionsJson).presets[0].title)
                     Qt.quit()
                 }
                 return

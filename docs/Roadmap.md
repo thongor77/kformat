@@ -13,6 +13,7 @@
 - [x] Essai réel sur clé USB (2026-10-18) : formatage complet réussi après correction du faux positif d'identité (voir Décisions techniques)
 - [ ] Dette phase 2 (revue, non bloquante) : `load_options` hors du thread UI, test réel de l'ergonomie sur une vraie clé USB avec accord de l'utilisateur
 - [x] Verrou d'inhibition logind (2026-10-24) : veille et arrêt bloqués pendant l'écriture (`DiskBackend::inhibit_sleep`, `Inhibit("shutdown:sleep", …, "block")`), avertissement à la confirmation si indisponible
+- [x] Traductions anglais/français/espagnol (2026-10-24) : catalogue `core::messages`, détection `core::i18n`, QML via `controller.tr*` ; **à faire : relecture de l'espagnol par un locuteur natif**
 - [ ] Phase 4 — intégration bureau
   - [x] Option `--device /dev/sdX` (2026-10-18) : `core::cli::parse_device_arg` (validée, testée), saute la liste, accepte une partition (`sda1` → `sda`), refuse disque système/inexistant avec un message
   - [x] Lanceur `packaging/kformat.desktop` + action Solid `packaging/solid/kformat-format.desktop` (widget des périphériques) + `scripts/install-user.sh` (installation utilisateur réversible, `--uninstall`)

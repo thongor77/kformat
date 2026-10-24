@@ -4,6 +4,9 @@
 ///
 /// Only plain device nodes directly under `/dev/` are accepted (`/dev/sda`,
 /// `/dev/sda1`, `/dev/nvme0n1p1`): anything else could point somewhere unexpected.
+///
+/// The error is the rejected value (empty when none was given); turn it into a
+/// message with `view::device_arg_error_message`.
 pub fn parse_device_arg(args: &[String]) -> Result<Option<String>, String> {
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
@@ -22,7 +25,7 @@ pub fn parse_device_arg(args: &[String]) -> Result<Option<String>, String> {
 fn validate_device(value: &str) -> Result<String, String> {
     let name = value
         .strip_prefix("/dev/")
-        .ok_or_else(|| format!("Périphérique invalide : « {value} » (attendu : /dev/sdX)."))?;
+        .ok_or_else(|| value.to_owned())?;
     let plain = !name.is_empty()
         && !name.starts_with('.')
         && name
@@ -31,9 +34,7 @@ fn validate_device(value: &str) -> Result<String, String> {
     if plain && !name.contains("..") {
         Ok(value.to_owned())
     } else {
-        Err(format!(
-            "Périphérique invalide : « {value} » (attendu : /dev/sdX)."
-        ))
+        Err(value.to_owned())
     }
 }
 

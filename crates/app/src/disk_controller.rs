@@ -60,6 +60,25 @@ pub mod qobject {
         #[cxx_name = "smokeEnabled"]
         fn smoke_enabled(self: &DiskController) -> bool;
 
+        /// Text of a catalog message in the user's language (the key itself if unknown).
+        #[qinvokable]
+        fn tr(self: &DiskController, key: &QString) -> QString;
+
+        #[qinvokable]
+        fn tr1(self: &DiskController, key: &QString, a: &QString) -> QString;
+
+        #[qinvokable]
+        fn tr2(self: &DiskController, key: &QString, a: &QString, b: &QString) -> QString;
+
+        #[qinvokable]
+        fn tr3(
+            self: &DiskController,
+            key: &QString,
+            a: &QString,
+            b: &QString,
+            c: &QString,
+        ) -> QString;
+
         /// Forgets the plan and result (used when going back to the disk list).
         #[qinvokable]
         fn reset(self: Pin<&mut Self>);
@@ -73,12 +92,14 @@ use kformat_core::backend::{DiskBackend, Progress};
 use kformat_core::cli::parse_device_arg;
 use kformat_core::fs::{available_filesystems, binary_in_path};
 use kformat_core::guard::run_guarded;
+use kformat_core::i18n::Lang;
+use kformat_core::messages::{tr, Msg};
 use kformat_core::plan::FormatPlan;
 use kformat_core::session::{prepare_plan, PlanInput};
 use kformat_core::udisks::UdisksBackend;
 use kformat_core::view::{
-    backend_error_message, disks_to_json, label_message, options_json, plan_error_message,
-    plan_json, session_error_message, step_text,
+    backend_error_message, device_arg_error_message, disks_to_json, label_message, options_json,
+    plan_error_message, plan_json, session_error_message, step_text,
 };
 
 const PHASE_IDLE: &str = "idle";
@@ -103,6 +124,8 @@ pub struct DiskControllerRust {
     start_device: QString,
     /// Why the `--device` value was rejected (empty when fine).
     start_error: QString,
+    /// Interface language, detected once at startup.
+    lang: Lang,
     /// The validated plan waiting for the user's confirmation.
     plan: Option<FormatPlan>,
     /// Bumped whenever a plan request is superseded, so stale results are dropped.
@@ -111,10 +134,11 @@ pub struct DiskControllerRust {
 
 impl Default for DiskControllerRust {
     fn default() -> Self {
+        let lang = Lang::from_env();
         let args: Vec<String> = std::env::args().collect();
         let (start_device, start_error) = match parse_device_arg(&args) {
             Ok(device) => (device.unwrap_or_default(), String::new()),
-            Err(message) => (String::new(), message),
+            Err(value) => (String::new(), device_arg_error_message(lang, &value)),
         };
         Self {
             disks_json: QString::from("[]"),
@@ -129,6 +153,7 @@ impl Default for DiskControllerRust {
             error: QString::default(),
             start_device: QString::from(start_device.as_str()),
             start_error: QString::from(start_error.as_str()),
+            lang,
             plan: None,
             request_id: 0,
         }
@@ -156,24 +181,25 @@ fn device_allowed(device: &str) -> bool {
 }
 
 /// Lists the disks and renders them as JSON, or a user-facing error message.
-fn load_disks_json() -> Result<String, String> {
-    let backend = UdisksBackend::connect(false).map_err(|e| backend_error_message(&e))?;
+fn load_disks_json(lang: Lang) -> Result<String, String> {
+    let backend = UdisksBackend::connect(false).map_err(|e| backend_error_message(lang, &e))?;
     let disks = backend
         .list_disks()
-        .map_err(|e| backend_error_message(&e))?;
-    Ok(disks_to_json(&disks))
+        .map_err(|e| backend_error_message(lang, &e))?;
+    Ok(disks_to_json(lang, &disks))
 }
 
 /// Builds the plan for the user's choices (and whether sleep can be blocked while it
 /// runs), or a user-facing error message.
-fn plan_for(input: &PlanInput) -> Result<(FormatPlan, bool), String> {
+fn plan_for(lang: Lang, input: &PlanInput) -> Result<(FormatPlan, bool), String> {
     if !device_allowed(input.device) {
-        return Err("Ce disque n'est pas autorisé dans ce mode de test.".to_owned());
+        return Err(tr(lang, Msg::SmokeDeviceRefused, &[]));
     }
     let backend =
-        UdisksBackend::connect(smoke_mode()).map_err(|e| session_error_message(&e.into()))?;
+        UdisksBackend::connect(smoke_mode()).map_err(|e| session_error_message(lang, &e.into()))?;
     let available = available_filesystems(&binary_in_path);
-    let plan = prepare_plan(&backend, &available, input).map_err(|e| session_error_message(&e))?;
+    let plan =
+        prepare_plan(&backend, &available, input).map_err(|e| session_error_message(lang, &e))?;
     Ok((plan, backend.sleep_protection_available()))
 }
 
@@ -185,9 +211,10 @@ impl qobject::DiskController {
         self.as_mut().set_busy(true);
         self.as_mut().set_error(QString::default());
 
+        let lang = self.rust().lang;
         let qt_thread = self.qt_thread();
         std::thread::spawn(move || {
-            let result = run_guarded(load_disks_json);
+            let result = run_guarded(lang, || load_disks_json(lang));
             // `Err` only means the controller was destroyed meanwhile: nothing to update.
             let _ = qt_thread.queue(move |mut controller| {
                 match result {
@@ -200,12 +227,42 @@ impl qobject::DiskController {
     }
 
     pub fn load_options(self: Pin<&mut Self>) {
-        let json = options_json(&available_filesystems(&binary_in_path));
+        let json = options_json(self.rust().lang, &available_filesystems(&binary_in_path));
         self.set_options_json(qs(&json));
     }
 
     pub fn label_message(&self, fs_id: &QString, label: &QString) -> QString {
-        qs(&label_message(&fs_id.to_string(), &label.to_string()))
+        qs(&label_message(
+            self.rust().lang,
+            &fs_id.to_string(),
+            &label.to_string(),
+        ))
+    }
+
+    fn translate(&self, key: &QString, args: &[&QString]) -> QString {
+        let key = key.to_string();
+        let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        match Msg::from_key(&key) {
+            Some(msg) => qs(&tr(self.rust().lang, msg, &args)),
+            None => qs(&key),
+        }
+    }
+
+    pub fn tr(&self, key: &QString) -> QString {
+        self.translate(key, &[])
+    }
+
+    pub fn tr1(&self, key: &QString, a: &QString) -> QString {
+        self.translate(key, &[a])
+    }
+
+    pub fn tr2(&self, key: &QString, a: &QString, b: &QString) -> QString {
+        self.translate(key, &[a, b])
+    }
+
+    pub fn tr3(&self, key: &QString, a: &QString, b: &QString, c: &QString) -> QString {
+        self.translate(key, &[a, b, c])
     }
 
     pub fn smoke_enabled(&self) -> bool {
@@ -234,16 +291,20 @@ impl qobject::DiskController {
         let (device, fs_id, table_id) =
             (device.to_string(), fs_id.to_string(), table_id.to_string());
         let (label, erase_id) = (label.to_string(), erase_id.to_string());
+        let lang = self.rust().lang;
         let qt_thread = self.qt_thread();
         std::thread::spawn(move || {
-            let result = run_guarded(|| {
-                plan_for(&PlanInput {
-                    device: &device,
-                    fs_id: &fs_id,
-                    table_id: &table_id,
-                    label: &label,
-                    erase_id: &erase_id,
-                })
+            let result = run_guarded(lang, || {
+                plan_for(
+                    lang,
+                    &PlanInput {
+                        device: &device,
+                        fs_id: &fs_id,
+                        table_id: &table_id,
+                        label: &label,
+                        erase_id: &erase_id,
+                    },
+                )
             });
             let _ = qt_thread.queue(move |mut controller| {
                 // The user moved on (reset or a newer request): drop this result.
@@ -252,9 +313,11 @@ impl qobject::DiskController {
                 }
                 match result {
                     Ok((plan, sleep_protected)) => {
-                        controller
-                            .as_mut()
-                            .set_plan_json(qs(&plan_json(&plan, sleep_protected)));
+                        controller.as_mut().set_plan_json(qs(&plan_json(
+                            lang,
+                            &plan,
+                            sleep_protected,
+                        )));
                         controller.as_mut().rust_mut().plan = Some(plan);
                         controller.as_mut().set_phase(qs(PHASE_READY));
                     }
@@ -272,20 +335,26 @@ impl qobject::DiskController {
         if self.phase().to_string() != PHASE_READY {
             return;
         }
+        let lang = self.rust().lang;
         let Some(plan) = self.rust().plan.clone() else {
             self.as_mut()
-                .set_plan_error(qs("Aucun plan à exécuter : recommencez."));
+                .set_plan_error(qs(&tr(lang, Msg::NoPlanToRun, &[])));
             return;
         };
         let confirmed = match plan.confirm(&typed.to_string()) {
             Ok(confirmed) => confirmed,
             Err(err) => {
-                self.as_mut().set_plan_error(qs(&plan_error_message(&err)));
+                self.as_mut()
+                    .set_plan_error(qs(&plan_error_message(lang, &err)));
                 return;
             }
         };
 
-        let texts: Vec<String> = confirmed.steps().iter().map(step_text).collect();
+        let texts: Vec<String> = confirmed
+            .steps()
+            .iter()
+            .map(|step| step_text(lang, step))
+            .collect();
         self.as_mut().rust_mut().plan = None;
         self.as_mut().set_plan_error(QString::default());
         self.as_mut().set_result_message(QString::default());
@@ -297,9 +366,9 @@ impl qobject::DiskController {
         let qt_thread = self.qt_thread();
         std::thread::spawn(move || {
             let progress_thread = qt_thread.clone();
-            let outcome = run_guarded(|| {
-                let backend =
-                    UdisksBackend::connect(smoke_mode()).map_err(|e| backend_error_message(&e))?;
+            let outcome = run_guarded(lang, || {
+                let backend = UdisksBackend::connect(smoke_mode())
+                    .map_err(|e| backend_error_message(lang, &e))?;
                 backend
                     .execute(&confirmed, &mut |p: Progress| {
                         let next = texts.get(p.completed).cloned().unwrap_or_default();
@@ -311,14 +380,16 @@ impl qobject::DiskController {
                             }
                         });
                     })
-                    .map_err(|e| backend_error_message(&e))
+                    .map_err(|e| backend_error_message(lang, &e))
             });
             let _ = qt_thread.queue(move |mut controller| match outcome {
                 Ok(()) => {
                     controller.as_mut().set_progress(1.0);
-                    controller
-                        .as_mut()
-                        .set_result_message(qs("Le formatage s'est terminé avec succès."));
+                    controller.as_mut().set_result_message(qs(&tr(
+                        lang,
+                        Msg::FormatSucceeded,
+                        &[],
+                    )));
                     controller.as_mut().set_phase(qs(PHASE_DONE));
                 }
                 Err(message) => {

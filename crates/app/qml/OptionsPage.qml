@@ -29,7 +29,7 @@ Kirigami.ScrollablePage {
         return list.findIndex(item => item.id === id)
     }
 
-    title: "Choisir le format"
+    title: controller.tr("OptionsTitle")
 
     Component.onCompleted: {
         // Drop any plan left over from another disk before this page starts a new one.
@@ -65,7 +65,7 @@ Kirigami.ScrollablePage {
                 text: page.disk.title + " (" + page.disk.name + ") — " + page.disk.sizeText
             }
             QQC2.Button {
-                text: "Continuer"
+                text: controller.tr("Continue")
                 icon.name: "go-next"
                 enabled: page.canContinue && controller.phase !== "planning"
                 onClicked: controller.preparePlan(
@@ -80,7 +80,7 @@ Kirigami.ScrollablePage {
 
         Kirigami.Heading {
             level: 3
-            text: "Que voulez-vous faire de ce disque ?"
+            text: controller.tr("OptionsQuestion")
         }
 
         Repeater {
@@ -116,8 +116,8 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
 
             QQC2.TextField {
-                Kirigami.FormData.label: "Nom du volume :"
-                placeholderText: "Facultatif"
+                Kirigami.FormData.label: controller.tr("OptionsLabelField")
+                placeholderText: controller.tr("OptionsLabelPlaceholder")
                 maximumLength: 255
                 text: page.label
                 onTextEdited: page.label = text
@@ -130,7 +130,7 @@ Kirigami.ScrollablePage {
             }
 
             QQC2.CheckBox {
-                text: "Options avancées"
+                text: controller.tr("OptionsAdvanced")
                 checked: page.showAdvanced
                 onToggled: page.showAdvanced = checked
             }
@@ -138,7 +138,7 @@ Kirigami.ScrollablePage {
             QQC2.ComboBox {
                 id: fsBox
                 visible: page.showAdvanced
-                Kirigami.FormData.label: "Système de fichiers :"
+                Kirigami.FormData.label: controller.tr("OptionsFsField")
                 model: page.options.filesystems
                 textRole: "name"
                 valueRole: "id"
@@ -151,14 +151,14 @@ Kirigami.ScrollablePage {
                     width: fsBox.width
                     enabled: modelData.available
                     highlighted: fsBox.highlightedIndex === index
-                    text: modelData.name + (modelData.available ? "" : " — indisponible")
+                    text: modelData.name + (modelData.available ? "" : page.controller.tr("OptionsUnavailableSuffix"))
                 }
             }
 
             QQC2.ComboBox {
                 id: tableBox
                 visible: page.showAdvanced
-                Kirigami.FormData.label: "Table de partitions :"
+                Kirigami.FormData.label: controller.tr("OptionsTableField")
                 model: page.options.tables
                 textRole: "name"
                 valueRole: "id"
@@ -168,12 +168,12 @@ Kirigami.ScrollablePage {
 
             QQC2.ComboBox {
                 visible: page.showAdvanced
-                Kirigami.FormData.label: "Effacement :"
+                Kirigami.FormData.label: controller.tr("OptionsEraseField")
                 textRole: "text"
                 valueRole: "id"
                 model: [
-                    { id: "quick", text: "Rapide" },
-                    { id: "zero", text: "Écraser avec des zéros (lent)" }
+                    { id: "quick", text: controller.tr("OptionsEraseQuick") },
+                    { id: "zero", text: controller.tr("OptionsEraseZero") }
                 ]
                 currentIndex: page.eraseId === "zero" ? 1 : 0
                 onActivated: page.eraseId = currentValue

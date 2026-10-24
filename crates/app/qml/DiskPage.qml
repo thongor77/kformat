@@ -11,7 +11,7 @@ Kirigami.ScrollablePage {
     readonly property var disks: JSON.parse(controller.disksJson)
     property var selected: null
 
-    title: "Choisir un disque"
+    title: controller.tr("DiskTitle")
 
     // A refreshed list invalidates the previous selection.
     Connections {
@@ -22,7 +22,7 @@ Kirigami.ScrollablePage {
     actions: [
         Kirigami.Action {
             icon.name: "view-refresh"
-            text: "Actualiser"
+            text: controller.tr("DiskRefresh")
             enabled: !controller.busy
             onTriggered: {
                 page.selected = null
@@ -37,7 +37,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: controller.error !== ""
             type: Kirigami.MessageType.Error
-            text: "Impossible de lire les disques : " + controller.error
+            text: controller.tr1("DiskReadError", controller.error)
         }
         Kirigami.InlineMessage {
             Layout.fillWidth: true
@@ -53,10 +53,10 @@ Kirigami.ScrollablePage {
             QQC2.Label {
                 Layout.fillWidth: true
                 elide: Text.ElideRight
-                text: page.selected ? page.selected.title + " (" + page.selected.name + ")" : "Aucun disque sélectionné"
+                text: page.selected ? page.selected.title + " (" + page.selected.name + ")" : controller.tr("DiskNoneSelected")
             }
             QQC2.Button {
-                text: "Continuer"
+                text: controller.tr("Continue")
                 icon.name: "go-next"
                 enabled: page.selected !== null
                 onClicked: applicationWindow().pageStack.push(
@@ -102,8 +102,9 @@ Kirigami.ScrollablePage {
                         opacity: 0.7
                         color: row.modelData.selectable ? Kirigami.Theme.textColor : Kirigami.Theme.negativeTextColor
                         text: row.modelData.selectable
-                            ? row.modelData.name + " · " + (row.modelData.removable ? "Amovible" : "Interne")
-                                + " · " + row.modelData.partitions.length + " partition(s)"
+                            ? row.modelData.name + " · "
+                                + (row.modelData.removable ? page.controller.tr("DiskRemovable") : page.controller.tr("DiskInternal"))
+                                + " · " + page.controller.tr1("DiskPartitionCount", row.modelData.partitions.length)
                             : row.modelData.blockedReason
                     }
                 }
@@ -114,8 +115,8 @@ Kirigami.ScrollablePage {
             anchors.centerIn: parent
             width: parent.width - Kirigami.Units.gridUnit * 4
             visible: list.count === 0 && !controller.busy && controller.error === ""
-            text: "Aucun disque détecté"
-            explanation: "Branchez un disque ou une clé USB, puis actualisez."
+            text: controller.tr("DiskNoneDetected")
+            explanation: controller.tr("DiskPlugHint")
             icon.name: "drive-removable-media-usb"
         }
 
