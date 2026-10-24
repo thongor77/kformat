@@ -15,7 +15,7 @@ Application KDE (Rust) pour formater disques, SSD et clés USB de façon simple 
 
 ## État actuel
 
-Phase 0 (spikes) terminée le 2026-10-18 : udisks Format OK pour 6 FS, cxx-qt + Kirigami OK, progression via Job. Phase 1 (crate `core`) livrée et relue le 2026-10-18 (blocages de la revue corrigés). Phase 2 en cours : étapes 1 à 3 faites (liste, choix du format, confirmation + progression) ; revue de code de la crate `app` faite et corrigée. Essai réel sur clé USB réussi le 2026-10-18. Phase 4 en cours : option `--device`, lanceur et action Solid faits (installation utilisateur : `scripts/install-user.sh`) ; paquet AUR (`packaging/aur/`) construit et testé localement. Reste : vérifier l'action dans le widget des périphériques, puis publier (GitHub + AUR, par le mainteneur). Résultats phase 0 : `docs/Phase0-Resultats.md`.
+Phase 0 (spikes) terminée le 2026-10-18 : udisks Format OK pour 6 FS, cxx-qt + Kirigami OK, progression via Job. Phase 1 (crate `core`) livrée et relue le 2026-10-18 (blocages de la revue corrigés). Phase 2 en cours : étapes 1 à 3 faites (liste, choix du format, confirmation + progression) ; revue de code de la crate `app` faite et corrigée. Essai réel sur clé USB réussi le 2026-10-18. Phase 4 en cours : option `--device`, lanceur et action Solid faits (installation utilisateur : `scripts/install-user.sh`) ; paquet AUR (`packaging/aur/`) construit et testé localement. Action Solid vérifiée dans le widget Périphériques (2026-10-24). Reste : publier (GitHub + AUR, par le mainteneur). Résultats phase 0 : `docs/Phase0-Resultats.md`.
 
 ## Lancer le projet
 

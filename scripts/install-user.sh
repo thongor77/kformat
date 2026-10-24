@@ -20,6 +20,10 @@ fi
 cd "$root"
 cargo build --release -p kformat-app
 
+# Plasma only watches Solid action directories that exist when it starts.
+first_action_dir=false
+[[ -d "$(dirname "$action")" ]] || first_action_dir=true
+
 install -Dm755 target/release/kformat-app "$binary"
 install -Dm644 packaging/kformat.desktop "$launcher"
 install -Dm644 packaging/solid/kformat-format.desktop "$action"
@@ -29,6 +33,11 @@ sed -i "s|^Exec=kformat|Exec=$binary|" "$launcher" "$action"
 
 echo "Installed:"
 printf '  %s\n' "$binary" "$launcher" "$action"
+if $first_action_dir; then
+    echo "Note: $(dirname "$action") is new. Restart the shell so the device notifier"
+    echo "      picks it up:  systemctl --user restart plasma-plasmashell.service"
+    echo "      (or log out and back in)."
+fi
 case ":$PATH:" in
     *":$bin_dir:"*) ;;
     *) echo "Note: $bin_dir is not in PATH; the launcher uses the full path." ;;

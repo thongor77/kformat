@@ -17,7 +17,7 @@
   - [x] Option `--device /dev/sdX` (2026-10-18) : `core::cli::parse_device_arg` (validée, testée), saute la liste, accepte une partition (`sda1` → `sda`), refuse disque système/inexistant avec un message
   - [x] Lanceur `packaging/kformat.desktop` + action Solid `packaging/solid/kformat-format.desktop` (widget des périphériques) + `scripts/install-user.sh` (installation utilisateur réversible, `--uninstall`)
   - [x] Installation utilisateur faite le 2026-10-18 (`scripts/install-user.sh`)
-  - [ ] Vérifier l'action Solid dans le widget des périphériques (essai par l'utilisateur avec une clé branchée)
+  - [x] Action Solid visible dans le widget Périphériques (2026-10-24, capture de l'utilisateur) après redémarrage de `plasmashell` (dossier utilisateur créé après son démarrage : voir Décisions techniques)
   - [x] Paquet AUR (2026-10-18) : `packaging/aur/PKGBUILD` + `README.md` (test local et procédure de publication) ; construit et inspecté avec `makepkg`
   - [ ] Publication : dépôt GitHub `thongor77/kformat`, tag `v0.1.0`, `updpkgsums`, `.SRCINFO`, dépôt AUR (par le mainteneur)
 - v2 — Partitionnement
