@@ -1,36 +1,34 @@
-# Paquet AUR de kformat
+# AUR package for kformat
 
-`PKGBUILD` construit kformat depuis l'archive du tag GitHub `v<pkgver>`.
+`PKGBUILD` builds kformat from the archive of the GitHub tag `v<pkgver>`.
 
-## Tester le paquet localement (sans publier)
+## Test the package locally (without publishing)
 
-Le tag n'existe pas tant que le dépôt n'est pas publié. Pour tester le `PKGBUILD` quand même :
+Until the tag exists you can still test the `PKGBUILD` against a local archive:
 
 ```bash
-# depuis ~/claude-projects : archive du projet sans les dossiers de build
+# from the directory that contains kformat/: archive the project without build folders
 tar --exclude='kformat/target' --exclude='kformat/spikes/*/target' \
     --transform 's,^kformat,kformat-0.1.0,' -czf /tmp/kformat-0.1.0.tar.gz kformat
-# copier le PKGBUILD dans un dossier de travail et pointer `source=` vers le fichier local
+# copy the PKGBUILD to a work folder and point `source=` at the local file
 mkdir /tmp/kformat-aur && cp kformat/packaging/aur/PKGBUILD /tmp/kformat-aur/
 sed -i 's|^source=.*|source=("$pkgname-$pkgver.tar.gz::file:///tmp/kformat-0.1.0.tar.gz")|' /tmp/kformat-aur/PKGBUILD
-cd /tmp/kformat-aur && makepkg -f      # produit kformat-0.1.0-1-x86_64.pkg.tar.zst
-pacman -Qlp kformat-0.1.0-1-x86_64.pkg.tar.zst   # vérifier le contenu
+cd /tmp/kformat-aur && makepkg -f      # produces kformat-0.1.0-1-x86_64.pkg.tar.zst
+pacman -Qlp kformat-0.1.0-1-x86_64.pkg.tar.zst   # inspect the contents
 ```
 
-## Publier (à faire par le mainteneur)
+## Publish (maintainer)
 
-1. Créer le dépôt GitHub `thongor77/kformat` et y pousser le code.
-2. Poser le tag : `git tag v0.1.0 && git push origin v0.1.0`.
-3. Dans un dossier de travail propre : copier `PKGBUILD`, puis `updpkgsums`
-   (remplace `SKIP` par le vrai `sha256sum`).
-4. Régénérer les métadonnées : `makepkg --printsrcinfo > .SRCINFO`.
-5. Cloner `ssh://aur@aur.archlinux.org/kformat.git`, y copier `PKGBUILD` et `.SRCINFO`, commit, push.
+1. Create the tag: `git tag v0.1.0 && git push origin v0.1.0`.
+2. In a clean work folder: copy `PKGBUILD`, then run `updpkgsums` (replaces `SKIP` with the real `sha256sum`).
+3. Regenerate the metadata: `makepkg --printsrcinfo > .SRCINFO`.
+4. Clone `ssh://aur@aur.archlinux.org/kformat.git`, copy `PKGBUILD` and `.SRCINFO` into it, commit, push.
 
-À chaque nouvelle version : incrémenter `pkgver` (et remettre `pkgrel=1`), nouveau tag, `updpkgsums`, `.SRCINFO`, push.
+For each new version: bump `pkgver` (and reset `pkgrel=1`), new tag, `updpkgsums`, `.SRCINFO`, push.
 
-## Dépendances
+## Dependencies
 
-- Exécution : `qt6-base`, `qt6-declarative`, `kirigami`, `udisks2`, `polkit`.
-- Compilation : `cargo` (+ compilateur C++ et `qmake6`, fournis par `base-devel` et `qt6-base`).
-- Optionnelles : les outils `mkfs` de chaque système de fichiers (`ntfs-3g`, `exfatprogs`, `f2fs-tools`,
-  `xfsprogs`, `btrfs-progs`, …) ; kformat grise un format dont l'outil manque et indique le paquet à installer.
+- Runtime: `qt6-base`, `qt6-declarative`, `kirigami`, `udisks2`, `polkit`.
+- Build: `cargo` (plus a C++ compiler and `qmake6`, provided by `base-devel` and `qt6-base`).
+- Optional: the `mkfs` tools of each file system (`ntfs-3g`, `exfatprogs`, `f2fs-tools`, `xfsprogs`,
+  `btrfs-progs`, …); kformat greys out a format whose tool is missing and names the package to install.

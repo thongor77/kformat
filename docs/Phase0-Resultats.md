@@ -1,40 +1,39 @@
-# Phase 0 — Résultats des spikes (2026-10-18)
+# Phase 0 — spike results (2026-10-18)
 
-Environnement : Arch Linux, Qt 6.12, Kirigami 6.30, udisks2 2.11.2, Rust stable. Tests sur image loop (jamais sur un vrai disque).
+Environment: Arch Linux, Qt 6.12, Kirigami 6.30, udisks2 2.11.2, stable Rust. All tests ran on a throw-away loop image, never on a real disk.
 
-## Spike 1 — `Block.Format` d'udisks2 par système de fichiers
+## Spike 1 — udisks2 `Block.Format` for each file system
 
-| FS | Résultat |
+| File system | Result |
 |---|---|
-| ext4, btrfs, xfs, f2fs, exfat, vfat | OK, `IdType` et `IdLabel` corrects, option `label` honorée |
-| ntfs | Échec propre : « executable mkfs.ntfs not found » (paquet `ntfs-3g` absent) |
+| ext4, btrfs, xfs, f2fs, exfat, vfat | OK; `IdType` and `IdLabel` correct, the `label` option is honoured |
+| ntfs | Clean failure: "executable mkfs.ntfs not found" (the `ntfs-3g` package is missing) |
 
-- Aucune invite polkit sur un périphérique loop (à re-tester sur une vraie clé USB : l'agent KDE devrait s'afficher).
-- Flux table de partitions : `Block.Format('gpt')` puis `PartitionTable.CreatePartitionAndFormat(offset, size=0 → tout l'espace, type, name, {}, fs, {label})` fonctionne en un appel.
-- Signature utile : `CreatePartitionAndFormat` = `ttssa{sv}sa{sv}`.
-- Conséquence : NTFS doit être détecté à l'exécution (présence de `mkfs.ntfs`) et grisé avec une explication si absent.
+- No polkit prompt on a loop device (confirmed later on a real USB stick).
+- Partition-table flow: `Block.Format('gpt')` followed by `PartitionTable.CreatePartitionAndFormat(offset, size = 0 → whole space, type, name, {}, fs, {label})` works in a single call.
+- Useful signature: `CreatePartitionAndFormat` is `ttssa{sv}sa{sv}`.
+- Consequence: NTFS has to be detected at run time (is `mkfs.ntfs` present?) and greyed out with an explanation when it is not.
 
 ## Spike 2 — cxx-qt 0.10 + Kirigami
 
-- Build 100 % Cargo, sans CMake (`qmake6` + `ninja` + `clang`/`g++` suffisent). Aucun problème de compilation.
-- Module QML `org.kformat.spike` chargé, `Kirigami.ApplicationWindow` s'ouvre sous Wayland, sans avertissement.
-- Un QObject Rust (`DiskModel`) expose une propriété et une méthode appelable depuis QML ; appel D-Bus udisks réussi.
-- `cxx-qt-lib` 0.10 n'expose que `QGuiApplication` (pas `QApplication`). Les styles `org.kde.desktop` et `org.kde.breeze` se lancent sans erreur ; le rendu visuel reste à vérifier à l'œil.
+- Pure Cargo build, no CMake (`qmake6` + `ninja` + `clang`/`g++` are enough). No compilation problems.
+- QML module `org.kformat.spike` loads, and a `Kirigami.ApplicationWindow` opens under Wayland without warnings.
+- A Rust QObject (`DiskModel`) exposes a property and a method callable from QML; a udisks2 D-Bus call succeeds.
+- `cxx-qt-lib` 0.10 only exposes `QGuiApplication` (no `QApplication`). The `org.kde.desktop` and `org.kde.breeze` styles start without errors, and the default style looks right under Plasma/Wayland.
 
-## Spike 3 — Progression
+## Spike 3 — progress
 
-- Pendant `Format` avec `erase=zero`, udisks crée un objet `Job` (`/org/freedesktop/UDisks2/jobs/N`) avec `Operation="format-erase"`, `Bytes`, `Progress`, `ProgressValid=true`.
-- Progression observable pour l'effacement. À confirmer sur un vrai support (l'image sparse a fini avant tout échantillonnage utile).
-- Sans effacement, l'opération est quasi instantanée : un indicateur indéterminé suffit.
+- During `Format` with `erase=zero`, udisks2 creates a `Job` object (`/org/freedesktop/UDisks2/jobs/N`) with `Operation="format-erase"`, `Bytes`, `Progress` and `ProgressValid=true`.
+- Progress is therefore observable while erasing (the sparse test image finished before any useful sampling, so it still needs a large real medium).
+- Without erasing, the operation is nearly instantaneous: an indeterminate indicator is enough.
 
-## Décision induite : zbus 5, pas zbus 6
+## Resulting decision: zbus 5, not zbus 6
 
-zbus 6.0.0 est une refonte : plus de module `blocking`, types renommés (`OwnedVariant`). On reste sur **zbus 5.x** (mature, API bloquante disponible). À réévaluer quand la 6.x se stabilise.
+zbus 6.0.0 is a rewrite: no `blocking` module, renamed types (`OwnedVariant`). We stay on **zbus 5.x** (mature, blocking API available) and will reconsider once 6.x settles.
 
-## Inconnues restantes
-- ~~Rendu visuel Kirigami avec `QGuiApplication` seul~~ : validé à l'œil par l'utilisateur le 2026-10-18 (rendu satisfaisant sous Plasma/Wayland).
-- Polkit sur périphérique amovible réel.
-- Progression réelle sur gros support.
-- Appel D-Bus bloquant dans le thread UI : à déplacer dans un thread (`CxxQtThread`) en phase 2.
+## Remaining unknowns at the time
 
-Code des spikes : `spikes/hello/` (jetable, hors workspace).
+- Progress on a large real medium.
+- A blocking D-Bus call on the UI thread: moved to a worker thread (`CxxQtThread`) in phase 2.
+
+The spike code lives in `spikes/hello/` (throw-away, outside the workspace).

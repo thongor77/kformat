@@ -1,97 +1,99 @@
-# Décisions techniques
+# Technical decisions
 
-## 2026-10-18 — Interface : cxx-qt + Kirigami
-Pont Rust/Qt officiel (KDAB), rendu natif Plasma. Écarté : qmetaobject-rs (moins maintenu), iced/egui (non natifs).
+A log of the design decisions, newest sections last, with the reason behind each. All dates are 2026.
 
-## 2026-10-18 — Backend : udisks2 via zbus
-Fait déjà lister, démonter, formater et autoriser via polkit. Évite un daemon root (contrairement à netmnt).
-Repli `mkfs.*` + pkexec seulement pour ce qu'udisks ne couvre pas.
+## 10-18 — Interface: cxx-qt + Kirigami
+The official Rust/Qt bridge (KDAB), with a native Plasma look. Rejected: qmetaobject-rs (less maintained), iced/egui (not native).
 
-## 2026-10-18 — Périmètre MVP : formatage seul
-Le partitionnement (redimensionnement, multi-partitions) double la complexité ; reporté en v2.
+## 10-18 — Backend: udisks2 through zbus
+udisks2 already lists, unmounts, formats and authorizes through polkit, so kformat needs no privileged daemon of its own. Falling back to `mkfs.*` + `pkexec` would only be needed for what udisks2 does not cover.
 
-## 2026-10-18 — zbus 5.x (pas 6.0)
-zbus 6.0.0 supprime l'API `blocking` et renomme des types. On reste sur 5.x tant que la 6 n'est pas stabilisée.
+## 10-18 — Scope of the first version: formatting only
+Partitioning (resizing, several partitions) doubles the complexity; postponed to a later version.
 
-## 2026-10-18 — NTFS conditionnel
-`mkfs.ntfs` absent par défaut : l'option NTFS est détectée à l'exécution et grisée avec explication.
+## 10-18 — zbus 5.x, not 6.0
+zbus 6.0.0 removes the `blocking` API and renames types. We stay on 5.x until 6 settles.
 
-## 2026-10-18 — Garde-fous par le typage (phase 1)
-`build_plan` valide (disque système, FS disponible, libellé, tailles, MBR > 2 Tio) et renvoie un `FormatPlan`.
-Seul `FormatPlan::confirm(nom_du_disque)` produit un `ConfirmedPlan`, et seul un `ConfirmedPlan` est exécutable par un backend.
-`DiskBackend::execute` relit la liste des disques juste avant d'écrire : disque disparu ou devenu disque système → abandon.
+## 10-18 — NTFS is conditional
+`mkfs.ntfs` is not installed by default: NTFS is detected at run time and greyed out with an explanation (and the package to install).
 
-## 2026-10-18 — Type de partition MBR explicite
-Sans type, udisks met 0x83 (Linux) même pour FAT32 en MBR. `FsType::mbr_type()` impose 0x0c (FAT32), 0x07 (exFAT/NTFS), 0x83 sinon. Vérifié sur image loop.
+## 10-18 — Guardrails enforced by types
+`build_plan` validates (system disk, available file system, label, sizes, MBR above 2 TiB) and returns a `FormatPlan`. Only `FormatPlan::confirm(disk_name)` produces a `ConfirmedPlan`, and only a `ConfirmedPlan` can be executed by a backend. `DiskBackend::execute` re-reads the disk list just before writing: a vanished disk, or one that became a system disk, aborts the run.
 
-## 2026-10-18 — Layout réel d'udisks2
-La propriété `Table` d'une partition est sur l'interface `Partition`, pas sur `Block`. Un test synthétique erroné l'avait masqué ; le test d'intégration sur image loop l'a révélé. Les tests synthétiques doivent refléter le layout observé sur le vrai bus.
+## 10-18 — Explicit MBR partition type
+Without a type, udisks2 uses 0x83 (Linux) even for FAT32 on MBR. `FsType::mbr_type()` enforces 0x0c (FAT32), 0x07 (exFAT/NTFS) and 0x83 otherwise. Verified on a loop image.
 
-## 2026-10-18 — Revue de code phase 1 : détection « disque système » inversée
-Revue (agent rust-reviewer) : verdict BLOCK sur la première version. Corrigé :
-- Un montage n'est « utilisateur » que sous `/run/media/`, `/media/` ou `/mnt/` ; tout le reste (`/var/lib/…`, `/home/…`, `[SWAP]`) compte comme système. Liste blanche d'usage, plus liste noire de chemins système.
-- Racine sur LUKS/LVM/md : les montages des périphériques empilés (`/sys/class/block/<n>/holders`, transitif) sont rattachés au disque (`Disk.holder_mounts`).
-- Swap : lu via l'interface udisks `Swapspace.Active` (la chaîne `[SWAP]` est une convention lsblk, jamais fournie par udisks).
-- Identité : `Disk.id` (Id udisks) ; avant CHAQUE étape on vérifie même disque + non système, et avant la première étape aussi la disposition des partitions (`same_drive` / `same_media`). Protège du disque débranché puis remplacé sous le même nom.
-- `DiskBackend` scellé (`sealed::StepRunner`) : `run_step` n'est pas appelable de l'extérieur, aucun contournement de `build_plan` → `confirm` → `execute`.
-- Analyse udisks stricte : propriété illisible = erreur (`BackendError::Parse`), jamais une partition ou un montage silencieusement perdu ; nom de périphérique vide refusé.
-- `Unmount` vérifie que la partition appartient bien au disque du plan.
+## 10-18 — The real udisks2 layout
+A partition's `Table` property is on the `Partition` interface, not on `Block`. A wrong synthetic test had hidden it; the integration test on a loop image revealed it. Synthetic tests must mirror the layout observed on the real bus.
 
-## Reporté (revue, sévérité moyenne/basse) — voir Roadmap
-Confirmation renforcée pour disque non amovible, `#[source]` sur les erreurs, retry après `Format` avant `CreatePartitionAndFormat`, timeout/annulation de l'effacement par zéros, tri naturel (`sdb2` avant `sdb10`), `#[non_exhaustive]`/docs publiques, `Unmount` d'une partition montée plusieurs fois.
+## 10-18 — Phase 1 code review: "system disk" detection inverted
+The review's verdict on the first version was BLOCK. Fixed:
+- A mount counts as user data only under `/run/media/`, `/media/` or `/mnt/`; everything else (`/var/lib/…`, `/home/…`, swap) counts as the system. A whitelist of user mounts instead of a blacklist of system paths.
+- Root on LUKS/LVM/md: mounts of devices stacked on the disk (`/sys/class/block/<n>/holders`, transitively) are attributed to it (`Disk.holder_mounts`).
+- Swap is read from the udisks2 `Swapspace.Active` property (the string `[SWAP]` is an `lsblk` convention that udisks2 never provides).
+- Identity: before EVERY step the disk must still be the same drive and not a system disk, and before the first step its partition layout must also match (`same_drive` / `same_media`). This protects against a disk that is unplugged and replaced under the same name.
+- The `DiskBackend` trait is sealed (`sealed::StepRunner`): `run_step` cannot be called from outside, so `build_plan` → `confirm` → `execute` cannot be bypassed.
+- Strict udisks2 parsing: an unreadable property is an error (`BackendError::Parse`), never a silently lost partition or mount; an empty device name is refused.
+- `Unmount` checks that the partition belongs to the planned disk.
 
-## 2026-10-18 — Rendu Kirigami validé
-Le spike (QGuiApplication + Kirigami, style par défaut) a un rendu jugé satisfaisant par l'utilisateur sous Plasma/Wayland : pas besoin de contourner l'absence de QApplication. Note : lancer le binaire directement (`./target/debug/kformat-spike-hello`) plutôt que `cargo run`.
+## Review follow-ups (medium/low severity) — see the roadmap
+Stronger confirmation for non-removable disks, `#[source]` on errors, a retry between `Format` and `CreatePartitionAndFormat`, a timeout/cancellation for the zero-fill erase, natural sorting (`sdb2` before `sdb10`), `#[non_exhaustive]`/public docs, and `Unmount` of a partition mounted in several places.
 
-## 2026-10-18 — UI : JSON plutôt qu'un modèle de liste Qt
-`core::view` sérialise les disques en JSON (camelCase), exposé en propriété `disksJson` du `DiskController` et lu par `JSON.parse` en QML. Plus simple qu'un QAbstractListModel pour une liste de quelques éléments, et la logique de présentation (tailles, raison du blocage, tri) est testée sans Qt. À revoir si la liste devient dynamique/volumineuse.
+## 10-18 — Kirigami rendering confirmed
+The spike (QGuiApplication + Kirigami, default style) looks right under Plasma/Wayland, so there is no need to work around the missing `QApplication`. Note: run the binary directly rather than through `cargo run`.
 
-## 2026-10-18 — Appels D-Bus hors du thread UI
-`DiskController::refresh` lance un `std::thread` et renvoie le résultat via `CxxQtThread::queue`. `busy` empêche les rafraîchissements concurrents.
+## 10-18 — UI: JSON instead of a Qt list model
+`core::view` serializes disks to JSON (camelCase), exposed as the `disksJson` property of `DiskController` and read with `JSON.parse` in QML. Simpler than a `QAbstractListModel` for a handful of items, and the presentation logic (sizes, blocking reason, ordering) is tested without Qt. To be revisited if the list becomes dynamic or large.
 
-## 2026-10-18 — Machine à états du contrôleur
-`phase` : idle → planning → ready → running → done | failed. Le plan validé est gardé côté Rust (`Option<FormatPlan>`), jamais reconstruit depuis le QML. `confirmAndRun(typed)` appelle `FormatPlan::confirm` : même si l'interface laissait passer une saisie fausse, c'est `core` qui refuse. `reset()` et `preparePlan()` sont ignorés pendant `running`. La fenêtre refuse de se fermer pendant `running`.
+## 10-18 — D-Bus calls off the UI thread
+`DiskController::refresh` starts a `std::thread` and returns the result through `CxxQtThread::queue`. `busy` prevents concurrent refreshes.
 
-## 2026-10-18 — Test bout en bout sans écran (feature `smoke`, désactivée par défaut)
-Revue de code : `--smoke` accessible en production permettait, avec `QT_QPA_PLATFORM=offscreen`, de formater un disque sans saisie. Désormais le hook n'existe que dans un build `--features smoke` (le QML de test n'est même pas empaqueté sinon), et il refuse tout périphérique hors `/dev/loop*`. Build dédié : `CARGO_TARGET_DIR=target/smoke cargo build -p kformat-app --features smoke`.
-`kformat-app --smoke <loop>` (plateforme offscreen) exécute prepare → mauvaise confirmation (refusée) → bonne confirmation → écriture, via les mêmes invokables que l'interface. Le drapeau `--smoke` ajoute seulement les périphériques loop à la liste de `UdisksBackend` ; les garde-fous de `core` restent actifs (disque système refusé).
+## 10-18 — Controller state machine
+`phase`: idle → planning → ready → running → done | failed. The validated plan is kept on the Rust side (`Option<FormatPlan>`) and never rebuilt from QML. `confirmAndRun(typed)` calls `FormatPlan::confirm`: even if the interface let a wrong entry through, `core` refuses it. `reset()` and `preparePlan()` are ignored while `running`, and the window refuses to close while `running`.
 
-## 2026-10-18 — Revue de code phase 2 (verdict WARNING, corrigé)
-- Panique dans un thread : `core::guard::run_guarded` convertit toute panique en message d'erreur (refresh, prepare, exécution) — sinon l'application restait bloquée en `running`, fenêtre infermable.
-- Plan périmé : `request_id` incrémenté par `prepare_plan` et `reset`, résultat ignoré s'il ne correspond plus ; `OptionsPage` appelle `reset()` à sa création et vérifie que le plan reçu concerne bien son disque.
-- Retour arrière pendant l'écriture : `ConfirmPage` est remplacée (`replace`) par `RunPage`, qui refuse `backRequested` tant que `running`.
-- Échec après la 1re étape : le message précise que le disque peut être dans un état incomplet.
+## 10-18 — Headless end-to-end test (the `smoke` feature, off by default)
+Code review: a `--smoke` hook reachable in production would have allowed, with `QT_QPA_PLATFORM=offscreen`, formatting a disk without any typed confirmation. The hook now only exists in a `--features smoke` build (the test QML is not even packaged otherwise) and refuses any device outside `/dev/loop*`. Dedicated build: `CARGO_TARGET_DIR=target/smoke cargo build -p kformat-app --features smoke`.
+`kformat-app --smoke <loop>` (offscreen platform) runs prepare → wrong confirmation (refused) → right confirmation → write, through the same invokables the interface uses. The flag only adds loop devices to what `UdisksBackend` lists; the guardrails of `core` stay active (a system disk is refused).
 
-## 2026-10-18 — Identité du disque : l'objet Drive, jamais `Block.Id` (bug trouvé sur vraie clé)
-Premier essai réel (clé USB 31 Go) : le garde-fou « disque changé » a annulé le formatage à la dernière étape, après la création de la table GPT, laissant la clé à moitié formatée. Cause : `Disk.id` venait de `Block.Id`, que udisks dérive du *contenu* du disque (vide après réécriture de la table) ; les images loop, sans Drive, ne pouvaient pas révéler le bug.
-Correctif : `Disk.id` = chemin de l'objet Drive (fabricant/modèle/numéro de série, stable au reformatage), vide pour un loop. Tests de non-régression : l'identité survit à un changement de `Block.Id`, et deux Drives distincts donnent deux identités.
-Complément : une vérification qui échoue *après* la première étape renvoie `BackendError::Interrupted` (étapes faites / total + cause), message FR « le disque peut être dans un état incomplet ». **Leçon : tout garde-fou d'identité doit être testé sur du vrai matériel, pas seulement sur loop.**
+## 10-18 — Phase 2 code review (verdict WARNING, fixed)
+- A panic in a worker thread: `core::guard::run_guarded` turns any panic into an error message (refresh, prepare, execution). Otherwise the app stayed stuck in `running` with a window that could not be closed.
+- Stale plan: `request_id` is bumped by `prepare_plan` and `reset`, and a result that no longer matches is ignored; `OptionsPage` calls `reset()` when created and checks the plan received is for its own disk.
+- "Back" during a write: `ConfirmPage` is replaced (`replace`) by `RunPage`, which refuses `backRequested` while `running`.
+- A failure after the first step: the message says the disk may be left in an incomplete state.
 
-## 2026-10-18 — Intégration bureau : action Solid, pas service menu Dolphin
-Les service menus Dolphin ne concernent que fichiers et dossiers, pas les entrées de « Périphériques ». Le mécanisme KDE pour un périphérique est une action Solid (`solid/actions/*.desktop`), proposée dans le widget des périphériques. Format calqué sur les actions officielles de KDE (`/usr/share/solid/actions/`). Piège évité : dans `Exec`, `%f` est le point de montage et `%d` le nœud de périphérique (`/dev/sda1`) ; on utilise `%d`. `desktop-file-validate` signale des erreurs sur ce type de fichier, y compris sur les fichiers officiels : bruit du validateur générique.
+## 10-18 — Disk identity: the Drive object, never `Block.Id` (bug found on a real stick)
+On the first real run (a 31 GB USB stick) the "disk changed" guardrail aborted the format at the last step, after the GPT table had been created, leaving the stick half-formatted. Cause: `Disk.id` came from `Block.Id`, which udisks2 derives from the *contents* of the disk (it became empty once the table was rewritten). Loop images have no Drive, so they could not reveal the bug.
+Fix: `Disk.id` is the Drive object path (vendor/model/serial, stable across re-formatting), empty for a loop device. Regression tests: the identity survives a change of `Block.Id`, and two distinct Drives give two identities.
+In addition, a check that fails *after* the first step returns `BackendError::Interrupted` (steps done / total + cause), with a message saying the disk may be left in an incomplete state. **Lesson: every identity guardrail must be tested on real hardware, not only on loop images.**
 
-## 2026-10-18 — `--device` : validation stricte
-Seuls les nœuds simples `/dev/<nom>` sont acceptés (pas de `..`, de sous-dossier, d'espace ni de `;`). L'option ne contourne rien : le disque est relu, les garde-fous de `core` s'appliquent, et la confirmation par saisie du nom reste obligatoire.
+## 10-18 — Desktop integration: a Solid action, not a Dolphin service menu
+Dolphin service menus only apply to files and folders, not to entries of the "Devices" section. The KDE mechanism for a device is a Solid action (`solid/actions/*.desktop`), offered in the Devices widget. The format follows KDE's own actions (`/usr/share/solid/actions/`). Pitfall avoided: in `Exec`, `%f` is the mount point and `%d` the device node (`/dev/sda1`); we use `%d`. `desktop-file-validate` reports errors on this kind of file, including KDE's own: noise from the generic validator.
 
-## 2026-10-18 — Licence MIT (à confirmer par le mainteneur)
-`Cargo.toml` annonçait GPL-3.0-or-later sans qu'aucun choix n'ait été fait et sans fichier LICENSE. Remplacé par MIT (fichier `LICENSE`), par cohérence avec `netmnt`. Aucune publication n'a eu lieu : changeable sans conséquence tant que le dépôt n'est pas public.
+## 10-18 — `--device`: strict validation
+Only plain `/dev/<name>` nodes are accepted (no `..`, sub-directory, space or `;`). The option bypasses nothing: the disk is re-read, the guardrails of `core` apply, and the typed confirmation stays mandatory.
 
-## 2026-10-18 — Paquet AUR
-`packaging/aur/PKGBUILD` suit les conventions de `netmnt` (archive du tag GitHub, `prepare` avec `cargo fetch --locked`, `build` frozen, `check` = tests unitaires seulement car les tests udisks sont `#[ignore]` et ne peuvent pas tourner en chroot, `package` à la main). Les chemins du répertoire de build sont réécrits (`-ffile-prefix-map`, `--remap-path-prefix`) pour qu'aucun `$srcdir` ne reste dans le binaire. Dépendances d'exécution : qt6-base, qt6-declarative, kirigami, udisks2, polkit ; les outils `mkfs` sont optionnels (kformat grise le format et nomme le paquet). Testé avec `makepkg` depuis une archive locale ; `sha256sums=('SKIP')` jusqu'à l'existence du tag.
+## 10-18 — MIT license
+`Cargo.toml` originally announced GPL-3.0-or-later without a deliberate choice and without a LICENSE file. Replaced by MIT (the `LICENSE` file), consistent with the maintainer's other KDE tool `netmnt`.
 
-## 2026-10-24 — Verrou d'inhibition logind pendant l'écriture
-`DiskBackend::inhibit_sleep` (défaut : `None`) ; `execute` prend le verrou avant la première étape et le garde jusqu'au retour (le `SleepGuard` est détruit en cas de succès, d'erreur ou de panique, ce qui ferme le descripteur et libère le verrou). Implémentation réelle : `org.freedesktop.login1.Manager.Inhibit("shutdown:sleep", "kformat", raison, "block")` sur le bus système.
-- Non bloquant : si logind refuse, on formate quand même (un filet de sécurité ne doit jamais empêcher de formater) ; la sonde `sleep_protection_available()` à la préparation du plan alimente `sleepProtected`, et l'écran de confirmation n'avertit que lorsque la veille n'est pas bloquée.
-- Ne protège pas d'un kill, d'un plantage, d'une coupure de courant ni d'un débranchement ; la déconnexion de session dépend du bureau, pas de logind. Le bénéfice réel : veille (capot fermé, veille automatique) et arrêt/redémarrage.
-- Testé : faux backend (verrou tenu à chaque étape, relâché après succès/échec/disque disparu, formatage sans verrou) + test réel `systemd-inhibit --list` (présent avec shutdown/sleep/block, disparu après `drop`) + **formatage réel d'une clé USB** (28,9 Go, 3 étapes) échantillonné toutes les 40 ms : verrou présent pendant l'écriture, absent après (2026-10-24).
+## 10-18 — AUR package
+`packaging/aur/PKGBUILD` follows the conventions of `netmnt` (archive of the GitHub tag, `prepare` with `cargo fetch --locked`, a frozen `build`, `check` = unit tests only because the udisks2 tests are `#[ignore]`d and cannot run in a build chroot, a hand-written `package`). Build-directory paths are rewritten (`-ffile-prefix-map`, `--remap-path-prefix`) so no `$srcdir` stays in the binary. Runtime dependencies: qt6-base, qt6-declarative, kirigami, udisks2, polkit; the `mkfs` tools are optional (kformat greys the format out and names the package). Tested with `makepkg` from a local archive; `sha256sums=('SKIP')` until the tag exists.
 
-## 2026-10-24 — Action Solid absente du widget : dossier utilisateur non surveillé
-Après l'installation utilisateur, « Formater avec kformat… » n'apparaissait pas dans le widget Périphériques. Le prédicat était correct (`solid-hardware6 query` renvoie bien la clé) et identique à celui de Gwenview, qui s'affichait. Cause : le widget a un « Predicates Monitor » qui ne surveille que les dossiers `solid/actions` existant au démarrage de `plasmashell` ; `~/.local/share/solid/actions` a été créé par l'installation, après le démarrage (vérifié dans `/proc/<pid>/fdinfo` : 1 watch inotify sur `/usr/share/solid/actions`, 0 sur le dossier utilisateur). Remède : redémarrer le shell (`systemctl --user restart plasma-plasmashell.service`) ou rouvrir la session ; une seule fois. `install-user.sh` prévient désormais quand il crée ce dossier. Le paquet AUR installe dans `/usr/share/solid/actions`, déjà surveillé : pas concerné.
+## 10-24 — Sleep/shutdown inhibitor while writing
+`DiskBackend::inhibit_sleep` (default: `None`); `execute` takes the lock before the first step and keeps it until it returns (the `SleepGuard` is dropped on success, error or panic, which closes the file descriptor and releases the lock). Real implementation: `org.freedesktop.login1.Manager.Inhibit("shutdown:sleep", "kformat", reason, "block")` on the system bus.
+- Non-blocking: if logind refuses, formatting proceeds anyway (a safety net must never prevent formatting); the `sleep_protection_available()` probe at plan time feeds `sleepProtected`, and the confirmation screen only warns when sleep is not blocked.
+- It does not protect against a `kill`, a crash, a power cut or unplugging; session logout is handled by the desktop, not logind. The real benefit: suspend (closed lid, idle) and shutdown/reboot.
+- Tested: a fake backend (lock held at each step, released after success / failure / vanished disk, formatting without a lock), a real `systemd-inhibit --list` check (present with shutdown/sleep/block, gone after the drop), and **a real USB format** (28.9 GB, 3 steps) sampled every 40 ms: lock present while writing, absent afterwards.
 
-## 2026-10-24 — Traductions (en, fr, es) : catalogue compilé dans le programme
-Besoin : le bureau de l'utilisateur est en anglais, l'interface était 100 % française. Options écartées : Qt `.ts`/`.qm` (cxx-qt-lib 0.10 n'expose pas `QTranslator`, et les textes venant de Rust auraient eu un autre circuit), gettext comme `netmnt` (couche de liaison QML en plus, fichiers `.mo` à installer, complétude vérifiée seulement à l'exécution).
-Choix : `core::messages` — une macro `messages!` où chaque entrée DOIT donner `en`, `fr` et `es` (traduction manquante = erreur de compilation). Variables positionnelles `{0}`, `{1}`… ; un test vérifie qu'elles sont identiques dans les 3 langues, sans trou, que les clés sont uniques et que ≥ 80 % des textes diffèrent d'une langue à l'autre. `core::i18n::Lang` détecte la langue (`KFORMAT_LANG`, puis `LC_ALL`/`LC_MESSAGES`/`LANG`, puis la liste `LANGUAGE` sauf locale `C`/`POSIX`, repli anglais) et porte les unités de taille (`Go`/`GB`) et la marque décimale.
-Côté QML : un seul circuit, `controller.tr(clé)`, `tr1`, `tr2`, `tr3`. Test `crates/core/tests/qml_messages.rs` : toute clé utilisée dans le QML existe et reçoit exactement le bon nombre d'arguments (placé dans `core` car les tests de la crate `app` ne peuvent pas lier le code Qt généré).
-Conséquences : ajouter une langue = une variante de `Lang` + un texte par message (le compilateur liste ce qui manque) ; pas de fichier de traduction à installer. Limite : pas de traduction par la communauté via des `.po`. À revoir si des contributeurs en demandent.
-`--device` : `cli::parse_device_arg` renvoie la valeur rejetée, le message est construit par langue (`view::device_arg_error_message`). `session::UnknownOption` porte un texte neutre (`fs=zfs`).
-La traduction espagnole a été rédigée sans relecture par un locuteur natif : à faire relire avant publication.
+## 10-24 — The Solid action did not show up: user directory not watched
+After a per-user install, "Format with kformat…" did not appear in the Devices widget. The predicate was correct (`solid-hardware6 query` returns the stick) and identical to Gwenview's, which did show. Cause: the widget has a "predicates monitor" that only watches the `solid/actions` directories that exist when `plasmashell` starts; `~/.local/share/solid/actions` was created by the install, after that (checked in `/proc/<pid>/fdinfo`: 1 inotify watch on `/usr/share/solid/actions`, 0 on the user directory). Remedy: restart the shell (`systemctl --user restart plasma-plasmashell.service`) or log back in, once. `install-user.sh` now warns when it creates that directory. The AUR package installs into `/usr/share/solid/actions`, which is already watched, so it is not affected.
+
+## 10-24 — Translations (en, fr, es): a catalogue compiled into the program
+Need: the interface was 100 % French. Rejected: Qt `.ts`/`.qm` files (cxx-qt-lib 0.10 does not expose `QTranslator`, and text produced by Rust would have needed a second path), and gettext as in `netmnt` (an extra QML binding layer, `.mo` files to install, completeness only checked at run time).
+Chosen: `core::messages` — a `messages!` macro in which every entry MUST give `en`, `fr` and `es` (a missing translation is a compile error). Positional placeholders `{0}`, `{1}`…; a test checks they are identical in the three languages and have no gaps, that keys are unique and that at least 80 % of the texts differ between languages. `core::i18n::Lang` picks the language (`KFORMAT_LANG`, then `LC_ALL`/`LC_MESSAGES`/`LANG`, then the `LANGUAGE` list unless the locale is `C`/`POSIX`, falling back to English) and carries the size units (`GB`/`Go`) and the decimal mark.
+On the QML side there is a single path: `controller.tr(key)`, `tr1`, `tr2`, `tr3`. The test `crates/core/tests/qml_messages.rs` checks that every key used in QML exists and receives exactly the right number of arguments (it lives in `core` because the `app` crate's test binaries cannot link the generated Qt code).
+Consequences: adding a language is one `Lang` variant plus one text per message (the compiler lists what is missing); there is no translation file to install. Limit: no community translation through `.po` files; to be revisited if contributors ask for it.
+`--device`: `cli::parse_device_arg` returns the rejected value, and the message is built per language (`view::device_arg_error_message`). `session::UnknownOption` carries a neutral text (`fs=zfs`).
+The Spanish translation was written without review by a native speaker.
+
+## 10-24 — Documentation in English
+README and `docs/` are in English for visibility; `CLAUDE.md` (notes for the maintainer's coding assistant) stays in French, as in the maintainer's other projects.
