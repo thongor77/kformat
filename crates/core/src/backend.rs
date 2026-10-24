@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use crate::inhibit::SleepGuard;
 use crate::model::Disk;
 use crate::plan::ConfirmedPlan;
 
@@ -59,8 +60,22 @@ impl Progress {
     }
 }
 
+/// Reason shown by the system while it refuses to sleep or shut down.
+pub const INHIBIT_REASON: &str = "Formatage d'un disque en cours";
+
 pub trait DiskBackend: sealed::StepRunner {
     fn list_disks(&self) -> Result<Vec<Disk>, BackendError>;
+
+    /// Asks the system not to sleep or shut down until the guard is dropped.
+    /// `None` means the protection is unavailable; callers must carry on without it.
+    fn inhibit_sleep(&self, _reason: &str) -> Option<SleepGuard> {
+        None
+    }
+
+    /// Whether `inhibit_sleep` works right now (takes and immediately drops a lock).
+    fn sleep_protection_available(&self) -> bool {
+        self.inhibit_sleep(INHIBIT_REASON).is_some()
+    }
 
     /// Runs every step of a confirmed plan, stopping at the first failure.
     ///
@@ -72,6 +87,8 @@ pub trait DiskBackend: sealed::StepRunner {
         plan: &ConfirmedPlan,
         on_progress: &mut dyn FnMut(Progress),
     ) -> Result<(), BackendError> {
+        // Held until this function returns (success, error or panic): dropping releases it.
+        let _sleep_guard = self.inhibit_sleep(INHIBIT_REASON);
         let total = plan.steps().len();
         for (index, step) in plan.steps().iter().enumerate() {
             let current = verify_unchanged(self, plan.disk(), index == 0).map_err(|cause| {
@@ -130,6 +147,8 @@ fn verify_unchanged<B: DiskBackend + ?Sized>(
 pub(crate) mod fake {
     use std::cell::RefCell;
     use std::collections::VecDeque;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
 
     use super::sealed::StepRunner;
     use super::*;
@@ -142,6 +161,21 @@ pub(crate) mod fake {
         pub listings: RefCell<VecDeque<Vec<Disk>>>,
         pub fail_at: Option<usize>,
         pub calls: RefCell<Vec<Step>>,
+        /// Whether `inhibit_sleep` succeeds.
+        pub inhibit_available: bool,
+        /// Locks currently held.
+        pub locks_held: Arc<AtomicUsize>,
+        /// Locks held at the moment each step ran.
+        pub locks_at_step: RefCell<Vec<usize>>,
+    }
+
+    /// Counts a held lock; releases it when dropped.
+    struct CountedLock(Arc<AtomicUsize>);
+
+    impl Drop for CountedLock {
+        fn drop(&mut self) {
+            self.0.fetch_sub(1, Ordering::SeqCst);
+        }
     }
 
     impl FakeBackend {
@@ -154,11 +188,22 @@ pub(crate) mod fake {
                 listings: RefCell::new(listings.into()),
                 fail_at: None,
                 calls: RefCell::new(vec![]),
+                inhibit_available: true,
+                locks_held: Arc::new(AtomicUsize::new(0)),
+                locks_at_step: RefCell::new(vec![]),
             }
         }
     }
 
     impl DiskBackend for FakeBackend {
+        fn inhibit_sleep(&self, _reason: &str) -> Option<SleepGuard> {
+            if !self.inhibit_available {
+                return None;
+            }
+            self.locks_held.fetch_add(1, Ordering::SeqCst);
+            Some(SleepGuard::new(CountedLock(self.locks_held.clone())))
+        }
+
         fn list_disks(&self) -> Result<Vec<Disk>, BackendError> {
             let mut listings = self.listings.borrow_mut();
             if listings.len() > 1 {
@@ -172,6 +217,9 @@ pub(crate) mod fake {
     impl StepRunner for FakeBackend {
         fn run_step(&self, _disk: &Disk, step: &Step) -> Result<(), BackendError> {
             let index = self.calls.borrow().len();
+            self.locks_at_step
+                .borrow_mut()
+                .push(self.locks_held.load(Ordering::SeqCst));
             self.calls.borrow_mut().push(step.clone());
             match self.fail_at {
                 Some(at) if at == index => Err(BackendError::Bus("boom".into())),
@@ -183,6 +231,8 @@ pub(crate) mod fake {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use super::fake::FakeBackend;
     use super::*;
     use crate::fs::FsType;
@@ -223,6 +273,56 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn sleep_is_inhibited_during_every_step_and_released_afterwards() {
+        let backend = FakeBackend::new(vec![usb_stick()]);
+        backend
+            .execute(&confirmed(usb_stick()), &mut |_| {})
+            .unwrap();
+        assert_eq!(*backend.locks_at_step.borrow(), vec![1, 1]);
+        assert_eq!(backend.locks_held.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn the_lock_is_released_when_a_step_fails() {
+        let mut backend = FakeBackend::new(vec![usb_stick()]);
+        backend.fail_at = Some(0);
+        assert!(backend
+            .execute(&confirmed(usb_stick()), &mut |_| {})
+            .is_err());
+        assert_eq!(backend.locks_held.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn the_lock_is_released_when_the_disk_check_aborts_the_run() {
+        let backend = FakeBackend::new(vec![]);
+        assert!(backend
+            .execute(&confirmed(usb_stick()), &mut |_| {})
+            .is_err());
+        assert_eq!(backend.locks_held.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn formatting_proceeds_without_the_lock_when_it_is_unavailable() {
+        let mut backend = FakeBackend::new(vec![usb_stick()]);
+        backend.inhibit_available = false;
+        backend
+            .execute(&confirmed(usb_stick()), &mut |_| {})
+            .unwrap();
+        assert_eq!(*backend.locks_at_step.borrow(), vec![0, 0]);
+        assert_eq!(backend.calls.borrow().len(), 2);
+    }
+
+    #[test]
+    fn probing_protection_leaves_no_lock_behind() {
+        let backend = FakeBackend::new(vec![usb_stick()]);
+        assert!(backend.sleep_protection_available());
+        assert_eq!(backend.locks_held.load(Ordering::SeqCst), 0);
+        let mut without = FakeBackend::new(vec![usb_stick()]);
+        without.inhibit_available = false;
+        assert!(!without.sleep_protection_available());
     }
 
     #[test]

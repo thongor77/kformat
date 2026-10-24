@@ -164,15 +164,17 @@ fn load_disks_json() -> Result<String, String> {
     Ok(disks_to_json(&disks))
 }
 
-/// Builds the plan for the user's choices, or a user-facing error message.
-fn plan_for(input: &PlanInput) -> Result<FormatPlan, String> {
+/// Builds the plan for the user's choices (and whether sleep can be blocked while it
+/// runs), or a user-facing error message.
+fn plan_for(input: &PlanInput) -> Result<(FormatPlan, bool), String> {
     if !device_allowed(input.device) {
         return Err("Ce disque n'est pas autorisé dans ce mode de test.".to_owned());
     }
     let backend =
         UdisksBackend::connect(smoke_mode()).map_err(|e| session_error_message(&e.into()))?;
     let available = available_filesystems(&binary_in_path);
-    prepare_plan(&backend, &available, input).map_err(|e| session_error_message(&e))
+    let plan = prepare_plan(&backend, &available, input).map_err(|e| session_error_message(&e))?;
+    Ok((plan, backend.sleep_protection_available()))
 }
 
 impl qobject::DiskController {
@@ -249,8 +251,10 @@ impl qobject::DiskController {
                     return;
                 }
                 match result {
-                    Ok(plan) => {
-                        controller.as_mut().set_plan_json(qs(&plan_json(&plan)));
+                    Ok((plan, sleep_protected)) => {
+                        controller
+                            .as_mut()
+                            .set_plan_json(qs(&plan_json(&plan, sleep_protected)));
                         controller.as_mut().rust_mut().plan = Some(plan);
                         controller.as_mut().set_phase(qs(PHASE_READY));
                     }

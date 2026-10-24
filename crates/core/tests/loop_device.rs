@@ -143,3 +143,43 @@ fn the_disk_holding_the_running_system_is_detected() {
         system.iter().map(|d| d.name()).collect::<Vec<_>>()
     );
 }
+
+/// What `systemd-inhibit --list` currently shows.
+fn active_inhibitors() -> String {
+    let out = Command::new("systemd-inhibit")
+        .args(["--list", "--no-pager"])
+        .output()
+        .expect("systemd-inhibit is available");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+#[test]
+#[ignore = "needs systemd-logind on the system bus"]
+fn holds_a_logind_lock_only_while_the_guard_is_alive() {
+    let reason = format!("kformat-test-lock-{}", std::process::id());
+    let backend = UdisksBackend::connect(false).unwrap();
+    assert!(!active_inhibitors().contains(&reason));
+
+    let guard = backend
+        .inhibit_sleep(&reason)
+        .expect("logind grants the lock");
+    let listing = active_inhibitors();
+    let line = listing
+        .lines()
+        .find(|l| l.contains(&reason))
+        .unwrap_or_default();
+    assert!(
+        line.contains("shutdown") && line.contains("sleep") && line.contains("block"),
+        "unexpected lock: {line:?}"
+    );
+
+    drop(guard);
+    let released = (0..20).any(|_| {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        !active_inhibitors().contains(&reason)
+    });
+    assert!(
+        released,
+        "the lock must disappear once the guard is dropped"
+    );
+}

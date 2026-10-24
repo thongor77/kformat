@@ -59,6 +59,14 @@ Kirigami.ScrollablePage {
             text: "Toutes les données de ce disque seront définitivement effacées. Cette action est irréversible."
         }
 
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: !page.plan.sleepProtected
+            type: Kirigami.MessageType.Information
+            text: "La mise en veille ne peut pas être bloquée pendant le formatage. "
+                + "Ne fermez pas le capot et ne mettez pas l'ordinateur en veille avant la fin."
+        }
+
         Kirigami.Heading {
             Layout.fillWidth: true
             level: 2

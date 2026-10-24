@@ -10,6 +10,7 @@ use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 
 use crate::backend::sealed::StepRunner;
 use crate::backend::{BackendError, DiskBackend};
+use crate::inhibit::SleepGuard;
 use crate::model::{Disk, Partition, SWAP_MOUNT};
 use crate::plan::{EraseMode, Step};
 use crate::preset::TableKind;
@@ -24,6 +25,13 @@ const IFACE_TABLE: &str = "org.freedesktop.UDisks2.PartitionTable";
 const IFACE_FILESYSTEM: &str = "org.freedesktop.UDisks2.Filesystem";
 const IFACE_SWAP: &str = "org.freedesktop.UDisks2.Swapspace";
 const NO_DRIVE: &str = "/";
+const LOGIND_SERVICE: &str = "org.freedesktop.login1";
+const LOGIND_PATH: &str = "/org/freedesktop/login1";
+const LOGIND_MANAGER: &str = "org.freedesktop.login1.Manager";
+/// Refuse suspend, hibernate, power-off and reboot while a plan runs.
+const INHIBIT_WHAT: &str = "shutdown:sleep";
+/// Name shown next to the lock by `systemd-inhibit --list` and desktop warnings.
+const INHIBIT_WHO: &str = "kformat";
 /// First partition starts at 1 MiB, the usual alignment.
 const FIRST_PARTITION_OFFSET: u64 = 1024 * 1024;
 
@@ -264,6 +272,28 @@ impl UdisksBackend {
 }
 
 impl DiskBackend for UdisksBackend {
+    fn inhibit_sleep(&self, reason: &str) -> Option<SleepGuard> {
+        // The lock lives as long as the returned file descriptor stays open.
+        let acquired = self
+            .conn
+            .call_method(
+                Some(LOGIND_SERVICE),
+                LOGIND_PATH,
+                Some(LOGIND_MANAGER),
+                "Inhibit",
+                &(INHIBIT_WHAT, INHIBIT_WHO, reason, "block"),
+            )
+            .and_then(|reply| reply.body().deserialize::<zbus::zvariant::OwnedFd>());
+        match acquired {
+            Ok(fd) => Some(SleepGuard::new(fd)),
+            Err(err) => {
+                // Not fatal: formatting must never be blocked by a missing safety net.
+                eprintln!("kformat: cannot inhibit sleep ({err}); continuing without it");
+                None
+            }
+        }
+    }
+
     fn list_disks(&self) -> Result<Vec<Disk>, BackendError> {
         let reply = self.call(
             ROOT_PATH,

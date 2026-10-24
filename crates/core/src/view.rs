@@ -231,6 +231,8 @@ pub struct PlanView {
     pub table_name: String,
     pub label: String,
     pub erase_text: String,
+    /// False when the system could not be told to stay awake during the run.
+    pub sleep_protected: bool,
     pub will_erase: Vec<PartitionView>,
     pub steps: Vec<String>,
 }
@@ -272,7 +274,7 @@ fn erase_text(erase: EraseMode) -> &'static str {
 }
 
 /// What the confirmation screen shows: the disk, its contents and the steps.
-pub fn plan_json(plan: &FormatPlan) -> String {
+pub fn plan_json(plan: &FormatPlan, sleep_protected: bool) -> String {
     let disk = plan.disk();
     let (mut fs_name, mut label, mut table_name, mut erase) = (
         String::new(),
@@ -307,6 +309,7 @@ pub fn plan_json(plan: &FormatPlan) -> String {
         table_name,
         label,
         erase_text: erase_text(erase).to_owned(),
+        sleep_protected,
         will_erase: disk.partitions.iter().map(PartitionView::new).collect(),
         steps: plan.steps().iter().map(step_text).collect(),
     };
@@ -538,7 +541,7 @@ mod tests {
     }
 
     fn plan_value(erase: EraseMode) -> serde_json::Value {
-        serde_json::from_str(&plan_json(&plan(erase))).unwrap()
+        serde_json::from_str(&plan_json(&plan(erase), true)).unwrap()
     }
 
     #[test]
@@ -567,6 +570,15 @@ mod tests {
         assert_eq!(steps.len(), 2);
         assert!(steps[0].contains("GPT"), "{steps:?}");
         assert!(steps[1].contains("exFAT"), "{steps:?}");
+    }
+
+    #[test]
+    fn plan_json_reports_whether_sleep_is_blocked_during_the_run() {
+        let value = |protected: bool| -> serde_json::Value {
+            serde_json::from_str(&plan_json(&plan(EraseMode::Quick), protected)).unwrap()
+        };
+        assert_eq!(value(true)["sleepProtected"], true);
+        assert_eq!(value(false)["sleepProtected"], false);
     }
 
     #[test]
