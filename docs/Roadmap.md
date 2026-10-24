@@ -14,7 +14,8 @@
 ## Open
 
 - [ ] Native-speaker review of the Spanish translation.
-- [ ] Tag `v0.1.0`, publish the AUR package (`packaging/aur/README.md`).
+- [x] Tag `v0.1.0` (2026-10-24); the AUR `PKGBUILD` carries its checksum and was built from the real tag archive.
+- [ ] Publish the AUR package (`packaging/aur/README.md`).
 - [ ] Review follow-ups (non-blocking):
   - [ ] stronger confirmation for non-removable disks;
   - [ ] keep error sources (`#[source]`) in `BackendError`;

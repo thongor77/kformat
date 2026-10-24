@@ -59,7 +59,7 @@ With a stick plugged in, open Plasma's *Devices* widget in the system tray and c
 
 ### Arch Linux
 
-An AUR package is planned (see [`packaging/aur`](packaging/aur)). Until then, build from source.
+An AUR package is being prepared (see [`packaging/aur`](packaging/aur)); once it is published you will be able to install it with your AUR helper. Until then, build from source.
 
 ### From source
 
