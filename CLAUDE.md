@@ -15,7 +15,7 @@ Application KDE (Rust) pour formater disques, SSD et clés USB de façon simple 
 
 ## État actuel
 
-**v0.1.0 publiée le 2026-10-24 ; v0.1.1 (icône de l'application) préparée le 2026-10-25, pas encore taguée ni publiée** : dépôt GitHub public (`thongor77/kformat`, MIT), tag, GitHub Release et paquet AUR `kformat`. Fonctionnel de bout en bout, validé sur une vraie clé USB : assistant en trois étapes, garde-fous (disque système, saisie du nom, identité du disque vérifiée avant chaque étape), `--device`, action « Format with kformat… » dans le widget Périphériques, verrou logind pendant l'écriture, interface en anglais/français/espagnol.
+**v0.1.0 publiée le 2026-10-24 ; v0.1.1 (icône de l'application) publiée sur GitHub le 2026-10-25 (tag + Release) ; reste le push AUR 0.1.1** : dépôt GitHub public (`thongor77/kformat`, MIT), tag, GitHub Release et paquet AUR `kformat`. Fonctionnel de bout en bout, validé sur une vraie clé USB : assistant en trois étapes, garde-fous (disque système, saisie du nom, identité du disque vérifiée avant chaque étape), `--device`, action « Format with kformat… » dans le widget Périphériques, verrou logind pendant l'écriture, interface en anglais/français/espagnol.
 
 Reste : relecture de l'espagnol par un locuteur natif ; dettes mineures de la revue (voir `docs/Roadmap.md`) ; idée v2 : partitionnement. Nouvelle version : procédure dans `packaging/aur/README.md`. Historique et décisions : `docs/Decisions-Techniques.md`.
 

@@ -15,7 +15,8 @@
 
 ## Open
 
-- [ ] Release **v0.1.1** (application icon): push, tag, GitHub Release, update the AUR package. Version bumped and PKGBUILD prepared (checksum is `SKIP` until the tag exists).
+- [x] **v0.1.1** (application icon): tag and GitHub Release published; the AUR `PKGBUILD` carries the checksum and was built from the real tag archive.
+- [ ] Push the 0.1.1 update to the AUR repository (`packaging/aur/README.md`).
 
 - [ ] Native-speaker review of the Spanish translation.
 - [x] Tag `v0.1.0` (2026-10-24); the AUR `PKGBUILD` carries its checksum and was built from the real tag archive.
