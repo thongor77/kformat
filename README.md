@@ -110,7 +110,7 @@ side by side; a missing translation does not compile. To fix or add a translatio
 
 ## Status
 
-Version 0.1.0. It formats real USB sticks end to end. Partitioning (resizing, several partitions)
+Version 0.1.1. It formats real USB sticks end to end. Partitioning (resizing, several partitions)
 is deliberately out of scope for now. The Spanish translation has not been reviewed by a native
 speaker yet — corrections are welcome.
 

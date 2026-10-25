@@ -1,6 +1,6 @@
 # Maintainer: thongor77 <magetriste@proton.me>
 pkgname=kformat
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Format disks, SSDs and USB sticks simply and safely (Rust + Kirigami + udisks2)"
 arch=('x86_64')
@@ -17,7 +17,7 @@ optdepends=('exfatprogs: format as exFAT'
             'e2fsprogs: format as ext4'
             'plasma-workspace: "Format with kformat…" action in the device notifier')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('749bfd3e4092458aca85be79be04a0cff7002d1135e565cf4f1129ab03c8d468')
+sha256sums=('SKIP') # replace with the real checksum once the v0.1.1 tag exists (updpkgsums)
 
 prepare() {
     cd "$pkgname-$pkgver"

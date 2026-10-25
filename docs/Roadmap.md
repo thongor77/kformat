@@ -15,6 +15,8 @@
 
 ## Open
 
+- [ ] Release **v0.1.1** (application icon): push, tag, GitHub Release, update the AUR package. Version bumped and PKGBUILD prepared (checksum is `SKIP` until the tag exists).
+
 - [ ] Native-speaker review of the Spanish translation.
 - [x] Tag `v0.1.0` (2026-10-24); the AUR `PKGBUILD` carries its checksum and was built from the real tag archive.
 - [x] AUR package published (2026-10-24): https://aur.archlinux.org/packages/kformat
