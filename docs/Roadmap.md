@@ -16,7 +16,7 @@
 ## Open
 
 - [x] **v0.1.1** (application icon): tag and GitHub Release published; the AUR `PKGBUILD` carries the checksum and was built from the real tag archive.
-- [ ] Push the 0.1.1 update to the AUR repository (`packaging/aur/README.md`).
+- [x] AUR package updated to 0.1.1 (2026-10-25): https://aur.archlinux.org/packages/kformat
 
 - [ ] Native-speaker review of the Spanish translation.
 - [x] Tag `v0.1.0` (2026-10-24); the AUR `PKGBUILD` carries its checksum and was built from the real tag archive.
