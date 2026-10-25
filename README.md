@@ -1,5 +1,7 @@
 # kformat
 
+<img src="packaging/icons/kformat-256.png" alt="kformat icon" width="96" align="right">
+
 **Format disks, SSDs and USB sticks from KDE — simply and safely.**
 
 kformat is a small KDE Plasma application with a three-step wizard: pick a disk, pick what you

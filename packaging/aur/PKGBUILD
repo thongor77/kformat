@@ -46,6 +46,8 @@ check() {
 package() {
     cd "$pkgname-$pkgver"
     install -Dm755 target/release/kformat-app "$pkgdir/usr/bin/kformat"
+    install -Dm644 packaging/icons/hicolor/scalable/apps/kformat.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/kformat.svg"
     install -Dm644 packaging/kformat.desktop "$pkgdir/usr/share/applications/kformat.desktop"
     install -Dm644 packaging/solid/kformat-format.desktop \
         "$pkgdir/usr/share/solid/actions/kformat-format.desktop"

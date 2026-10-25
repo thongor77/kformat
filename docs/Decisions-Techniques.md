@@ -97,3 +97,6 @@ The Spanish translation was written without review by a native speaker.
 
 ## 10-24 — Documentation in English
 README and `docs/` are in English for visibility; `CLAUDE.md` (notes for the maintainer's coding assistant) stays in French, as in the maintainer's other projects.
+
+## 10-25 — Application icon
+kformat used the generic `drive-removable-media` theme icon. It now has its own: a white USB stick with a green "verified" badge on a Breeze-style blue tile, drawn as a single SVG (`packaging/icons/hicolor/scalable/apps/kformat.svg`) plus 512 px and 256 px PNG exports for web listings and the README. It follows the freedesktop icon-theme layout, so the launcher and the Solid action just say `Icon=kformat`; `scripts/install-user.sh` installs it under `~/.local/share/icons/hicolor/scalable/apps/` and the AUR package under `/usr/share/icons/hicolor/scalable/apps/`. No raster sizes are shipped: the SVG scales, and was checked down to 22 px on light and dark backgrounds.

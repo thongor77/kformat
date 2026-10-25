@@ -10,6 +10,7 @@
 - **Sleep/shutdown inhibitor** (2026-10-24): a logind lock is held while a plan runs; verified during a real format.
 - **Translations** (2026-10-24): English, French, Spanish through a compiled-in catalogue.
 - **English documentation** (2026-10-24).
+- **Application icon** (2026-10-25): own SVG icon, installed by the user script and the AUR package.
 - **v0.1.0 released** (2026-10-24): public repository, tag, GitHub Release and AUR package.
 
 ## Open
