@@ -10,6 +10,16 @@ interface, and talks to [udisks2](https://www.freedesktop.org/wiki/Software/udis
 service Dolphin and GNOME Disks use — so it needs no privileged daemon of its own and
 authorization goes through polkit.
 
+## Screenshots
+
+![kformat main window: choosing a disk and a format](docs/screenshots/main-window.png)
+
+*Pick a disk — the one holding the running system is greyed out, with the reason — and what to do with it.*
+
+![The "Format with kformat…" action in Plasma's Devices widget](docs/screenshots/devices-widget.png)
+
+*"Format with kformat…" in Plasma's Devices widget opens kformat straight on that device.*
+
 ## Why
 
 Existing tools (GNOME Disks, KDE Partition Manager) are complete, but heavy for the everyday task:
